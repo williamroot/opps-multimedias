@@ -81,7 +81,7 @@ class MediaAdmin(ContainerAdmin):
         (_(u'Publication'), {
             'classes': ('extrapretty'),
             'fields': ('published', 'date_available',
-                       'show_on_root_channel')}),
+                       'show_on_root_channel', 'feed_publishable',)}),
     )
 
     if not settings.OPPS_MULTIMEDIAS_USE_CONTENT_FIELD:
