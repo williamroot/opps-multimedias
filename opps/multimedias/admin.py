@@ -75,7 +75,7 @@ class MediaAdmin(ContainerAdmin):
         (_(u'Content'), {
             'fields': ['short_title', 'hat',
                        'headline', 'json', 'media_file', 'content', 'tags',
-                       'related_posts', 'duration']}),
+                       'related_posts', 'duration', 'source']}),
         (_(u'Relationships'), {
             'fields': ('channel', 'mirror_channel',)}),
         (_(u'Publication'), {
