@@ -509,8 +509,10 @@ class Vimeo(MediaAPI):
             res.status_code, res.json().get('error'))
 
     def delete(self, *args, **kwargs):
-        response = self.api.delete(self.video_uri(self.mediahost.host_id))
-
+        with Timeout(30):
+            response = self.api.delete(
+                self.video_uri(self.mediahost.host_id)
+            )
         if response.status_code != 204:
             raise MediaAPIError(
                 'Ocoured an error on delete video [{0}] {1}'.format(
@@ -539,7 +541,7 @@ class Vimeo(MediaAPI):
                 minutes, seconds = divmod(seconds, 60)
                 hours = 0
                 if minutes >= 60:
-                     hours, minutes = divmod(minutes, 60)
+                    hours, minutes = divmod(minutes, 60)
                 data[u'duration'] = time(hours, minutes, seconds)
 
             if content.get('pictures') and content['pictures']['active']:
