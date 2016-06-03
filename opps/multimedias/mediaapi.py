@@ -391,15 +391,55 @@ class Youtube(MediaAPI):
             'id': video_entry.id.text.split('/')[-1]
         }
 
+    def check_upload_status(self, mediahost, media_info, host_id, attempt=0):
+        """
+        Check youtube upload status
+        """
+        from .tasks import youtube_update_upload_status
+
+        if media_info['status'] == 'ok':
+            # just checking
+            media_info = self.get_info(mediahost.host_id)
+            if media_info['status'] == 'ok':
+                return mediahost.update()
+        pending_status = \
+            "We're processing this video. Check back later".lower()
+        duplicated_status = \
+            "This video is a duplicate of a previously uploaded video".lower()
+        status_message = media_info['status_message'].lower()
+
+        if pending_status in status_message:
+            # still processing
+            youtube_update_upload_status.apply_async(
+                args=(mediahost.id, host_id, attempt),
+                countdown=40,  # seconds
+            )
+        elif duplicated_status in status_message:
+            # duplicated! just publish with original one
+            mediahost.host_id = host_id
+            mediahost.status = MediaHost.STATUS_OK
+            mediahost.embed = self._get_video_embed(host_id)
+            mediahost.url = self._get_url(host_id)
+            mediahost.save()
+            video = mediahost.youtube_video
+            video.published = True
+            video.save()
+        else:
+            # unexpected error
+            raise IOError(status_message)
+
     def _get_video_embed(self, video_id):
         return render_to_string('multimedias/youtube/video_embed.html',
                                 {'video_id': video_id})
+
+    def _get_url(self, video_id):
+        return 'https://www.youtube.com/watch?v={}'.format(video_id)
 
     def _get_info(self, video_entry):
         result = {}
         if video_entry:
             video_id = video_entry.videoid
-            hour, minute, second =  video_entry.duration.split(':')
+            hour, minute, second = video_entry.duration.split(':')
             result.update({
                 u'id': video_id,
                 u'title': video_entry.title,
@@ -412,7 +452,7 @@ class Youtube(MediaAPI):
                 u'thumbnail': video_entry.thumb,
                 u'tags': video_entry.keywords,
                 u'embed': self._get_video_embed(video_id),
-                u'url': video_entry.watchv_url,
+                u'url': self._get_url(video_id),
                 u'status': u'ok',
                 u'status_msg': u'ok'
             })
@@ -425,10 +465,13 @@ class Youtube(MediaAPI):
         result['id'] = video_id
         try:
             video_entry = pafy.new(
-                'https://www.youtube.com/watch?v={}'.format(video_id)
+                self._get_url(video_id)
             )
         except IOError as error:
-            result.update({'status': u'error'})
+            result.update({
+                'status': u'error',
+                'status_message': str(error)
+            })
         else:
             result.update(self._get_info(video_entry))
         return result

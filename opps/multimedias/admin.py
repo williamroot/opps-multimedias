@@ -38,14 +38,15 @@ resend_vimeo.short_description = _(u"Resend VIMEO video")
 
 
 def resend_youtube(modeladmin, request, queryset):
+    from .tasks import youtube_resend_video
     for media in queryset.select_related('youtube'):
-        media.youtube.host_id = None
-        media.youtube.url = None
-        media.youtube.retries = 0
-        media.youtube.embed = ''
         media.youtube.status = MediaHost.STATUS_NOT_UPLOADED
-        media.youtube.status_message = ''
         media.youtube.save()
+        media.published = False
+        media.save()
+        youtube_resend_video.apply_async(
+            args=(media.youtube.id,),
+        )
 resend_youtube.short_description = _(u"Resend Youtube video")
 
 
