@@ -27,6 +27,9 @@ UPLOAD_MEDIA_INTERVAL = getattr(
 UPDATE_MEDIAHOST_INTERVAL = getattr(
     settings, 'OPPS_MULTIMEDIAS_UPDATE_MEDIAHOST_INTERVAL', 2)
 
+YOUTUBE_CHECK_STATUS_MAX_ATTEMPTS = getattr(
+    settings, 'YOUTUBE_CHECK_STATUS_MAX_ATTEMPTS', 50)  # run in 40 seconds
+
 
 @task.periodic_task(run_every=timezone.timedelta(
     minutes=UPLOAD_MEDIA_INTERVAL))
@@ -150,3 +153,56 @@ def delete_mediahost():
                 logger.exception(e.message)
             else:
                 mediahost.delete()
+
+
+@task()
+def youtube_resend_video(mediahost_id):
+    """
+    Youtube does not tolerate duplicate videos and has its own processing to
+    check this, for this reason, we try to send the video if it is double
+    checked s and it is the same video, if so, update the status.
+    """
+    mediahost = MediaHost.objects.get(pk=mediahost_id)
+    # save current host_id to make it possible to restore case is duplicated
+    current_host_id = str(mediahost.host_id)
+
+    print 'current_host_id :', current_host_id
+    # perform upload
+    media = mediahost.media
+    tags = split_tags(media.tags)
+    mediahost.status = MediaHost.STATUS_PROCESSING
+    mediahost.save()
+    media_info = mediahost.api.upload(
+        media.TYPE,
+        media.media_file.path,
+        media.title,
+        media.headline,
+        tags
+    )
+    # test if is duplicated
+    mediahost.status = MediaHost.STATUS_ENCODING
+    mediahost.host_id = media_info['id']
+    mediahost.save()
+    media_info = mediahost.api.get_info(mediahost.host_id)
+    mediahost.api.check_upload_status(
+        mediahost=mediahost,
+        media_info=media_info,
+        host_id=current_host_id
+    )
+    return media_info
+
+
+@task()
+def youtube_update_upload_status(mediahost_id, host_id, attempt=0):
+    if attempt > YOUTUBE_CHECK_STATUS_MAX_ATTEMPTS:  # run in 30 seconds
+        raise RuntimeError('Youtube update upload status max attempts error')
+    attempt += 1
+    mediahost = MediaHost.objects.get(id=mediahost_id)
+    media_info = mediahost.api.get_info(mediahost.host_id)
+    mediahost.api.check_upload_status(
+        mediahost=mediahost,
+        media_info=media_info,
+        host_id=host_id,
+        attempt=attempt,
+    )
+    return media_info
