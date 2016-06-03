@@ -268,11 +268,31 @@ class Media(Article):
                 mediahosts.append(i.name)
         return mediahosts
 
-    def get_media_embed(self):
+    @property
+    def mediahost(self):
         if self.uolmais:
-            return self.uolmais.embed
+            return self.uolmais
+        if self.vimeo:
+            return self.vimeo
+        if self.youtube:
+            return self.youtube
         elif self.local:
-            return self.local.embed
+            return self.local
+        return
+
+    @property
+    def status(self):
+        if not self.mediahost:
+            return ''
+        status = self.mediahost.status
+        if self.mediahost.status_message:
+            status = '{} - {}'.format(status, self.mediahost.status_message)
+        return status
+
+    def get_media_embed(self):
+        mediahost = self.mediahost
+        if mediahost:
+            return mediahost.embed
         else:
             return "<p>TODO</p>"
 
