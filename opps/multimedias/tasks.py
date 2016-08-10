@@ -26,6 +26,8 @@ UPLOAD_MEDIA_INTERVAL = getattr(
     settings, 'OPPS_MULTIMEDIAS_UPLOAD_MEDIA_INTERVAL', 5)
 UPDATE_MEDIAHOST_INTERVAL = getattr(
     settings, 'OPPS_MULTIMEDIAS_UPDATE_MEDIAHOST_INTERVAL', 2)
+DELETE_MEDIAHOST_INTERVAL = getattr(
+    settings, 'OPPS_MULTIMEDIAS_DELETE_MEDIAHOST_INTERVAL', 60)
 
 
 @task.periodic_task(run_every=timezone.timedelta(
@@ -111,7 +113,9 @@ def upload_media():
             )
 
 
-@task.periodic_task(run_every=timezone.timedelta(minutes=2))
+@task.periodic_task(run_every=timezone.timedelta(
+    minutes=UPDATE_MEDIAHOST_INTERVAL)
+)
 def update_mediahost():
     mediahosts = MediaHost.objects.filter(status=MediaHost.STATUS_PROCESSING)
     mediahosts = mediahosts.exclude(
@@ -136,7 +140,9 @@ def update_mediahost():
             logger.exception(e.message)
 
 
-@task.periodic_task(run_every=timezone.timedelta(minutes=60))
+@task.periodic_task(run_every=timezone.timedelta(
+    minutes=DELETE_MEDIAHOST_INTERVAL)
+)
 def delete_mediahost():
     mediahosts = MediaHost.objects.filter(status=MediaHost.STATUS_DELETED)
     for mediahost in mediahosts:
