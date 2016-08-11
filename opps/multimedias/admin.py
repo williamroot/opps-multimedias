@@ -109,7 +109,7 @@ class MediaAdmin(ContainerAdmin):
         pop = request.GET.get('pop')
         if pop == 'oppseditor':
             list_display = ['opps_editor_select'] + list(list_display)
-        return list_display
+        return list(list_display) + ['status']
 
     def opps_editor_select(self, obj):
         source = obj.get_media_embed()

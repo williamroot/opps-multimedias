@@ -266,6 +266,15 @@ class Media(Article):
                 mediahosts.append(i.name)
         return mediahosts
 
+    @property
+    def status(self):
+        if not self.mediahost:
+            return ''
+        status = self.mediahost.status
+        if self.mediahost.status_message:
+            status = '{} - {}'.format(status, self.mediahost.status_message)
+        return status
+
     def get_media_embed(self):
         if self.uolmais:
             return self.uolmais.embed
