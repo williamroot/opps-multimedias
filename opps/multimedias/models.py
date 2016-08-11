@@ -266,6 +266,19 @@ class Media(Article):
                 mediahosts.append(i.name)
         return mediahosts
 
+
+    @property
+    def mediahost(self):
+        if self.uolmais:
+            return self.uolmais
+        if self.vimeo:
+            return self.vimeo
+        if self.youtube:
+            return self.youtube
+        elif self.local:
+            return self.local
+        return
+
     @property
     def status(self):
         if not self.mediahost:
